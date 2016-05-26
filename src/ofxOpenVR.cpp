@@ -91,7 +91,7 @@ bool ofxOpenVR::initGL()
 {
 
 
-	if (!createAllShaders())
+	if (!CreateAllShaders())
 		return false;
 
 	setupCameras();
@@ -118,24 +118,12 @@ bool ofxOpenVR::initCompositor()
 
 	return true;
 }
-//-----------------------------------------------------------------------------
-// Purpose: Converts a SteamVR matrix to our local matrix class
-//-----------------------------------------------------------------------------
-ofMatrix4x4 ofxOpenVR::convertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t &matPose)
-{
-	ofMatrix4x4 matrixObj(
-		matPose.m[0][0], matPose.m[1][0], matPose.m[2][0], 0.0,
-		matPose.m[0][1], matPose.m[1][1], matPose.m[2][1], 0.0,
-		matPose.m[0][2], matPose.m[1][2], matPose.m[2][2], 0.0,
-		matPose.m[0][3], matPose.m[1][3], matPose.m[2][3], 1.0f
-	);
-	return matrixObj;
-}
+
 
 void ofxOpenVR::beginScene(vr::Hmd_Eye nEye) {
-
-	if (nEye == vr::Hmd_Eye::Eye_Left) {
-		glClearColor(0.25f, 0.f, 0.25f, 1.0f); // nice background color, but not black
+	
+	if (nEye == vr::Eye_Left) {
+		glClearColor(0.04, 0.05f, 0.06f, 1.0f); // nice background color, but not black
 		glEnable(GL_MULTISAMPLE);
 		glBindFramebuffer(GL_FRAMEBUFFER, leftEyeDesc.m_nRenderFramebufferId);
 
@@ -145,58 +133,55 @@ void ofxOpenVR::beginScene(vr::Hmd_Eye nEye) {
 		glBindFramebuffer(GL_FRAMEBUFFER, rightEyeDesc.m_nRenderFramebufferId);
 	}
 	ofPushView();
-	ofPushMatrix();
 	glViewport(0, 0, mRenderWidth, mRenderHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
 
-	glUseProgram(sceneShader.getProgram());
-	glUniformMatrix4fv(mSceneMatrixLocation, 1, GL_FALSE, getCurrentViewProjectionMatrix(nEye).getPtr());
+	glUseProgram(m_unSceneProgramID);
+	glUniformMatrix4fv(mSceneMatrixLocation, 1, GL_FALSE, getCurrentViewProjectionMatrix(nEye).get());
 
 }
 void ofxOpenVR::endScene(vr::Hmd_Eye nEye) {
-	//glUseProgram(0);
-
-
-
-	//bool bIsInputCapturedByAnotherProcess = mHMD->IsInputFocusCapturedByAnotherProcess();
-
-	//if (!bIsInputCapturedByAnotherProcess)
-	//{
-	//	// draw the controller axis lines
-	//	glUseProgram(controllerShader.getProgram());
-	//	glUniformMatrix4fv(mControllerMatrixLocation, 1, GL_FALSE, getCurrentViewProjectionMatrix(nEye).getPtr());
-	//	glBindVertexArray(m_unControllerVAO);
-	//	glDrawArrays(GL_LINES, 0, m_uiControllerVertcount);
-	//	glBindVertexArray(0);
-	//}
-
-	//// ----- Render Model rendering -----
-	//glUseProgram(renderShader.getProgram());
-
-	//for (uint32_t unTrackedDevice = 0; unTrackedDevice < vr::k_unMaxTrackedDeviceCount; unTrackedDevice++)
-	//{
-	//	if (!mTrackedDeviceToRenderModel[unTrackedDevice] || !mShowTrackedDevice[unTrackedDevice])
-	//		continue;
-
-	//	const vr::TrackedDevicePose_t & pose = mTrackedDevicePose[unTrackedDevice];
-	//	if (!pose.bPoseIsValid)
-	//		continue;
-
-	//	if (bIsInputCapturedByAnotherProcess && mHMD->GetTrackedDeviceClass(unTrackedDevice) == vr::TrackedDeviceClass_Controller)
-	//		continue;
-
-	//	const ofMatrix4x4 & matDeviceToTracking = mMat4DevicePose[unTrackedDevice];
-	//	ofMatrix4x4 matMVP = getCurrentViewProjectionMatrix(nEye) * matDeviceToTracking;
-	//	glUniformMatrix4fv(mRenderMatrixLocation, 1, GL_FALSE, matMVP.getPtr());
-
-	//	mTrackedDeviceToRenderModel[unTrackedDevice]->Draw();
-	//}
-
 	glUseProgram(0);
 
-	ofPopMatrix();
+
+
+	bool bIsInputCapturedByAnotherProcess = mHMD->IsInputFocusCapturedByAnotherProcess();
+
+	if (!bIsInputCapturedByAnotherProcess)
+	{
+		// draw the controller axis lines
+		glUseProgram(controllerShader.getProgram());
+		glUniformMatrix4fv(mControllerMatrixLocation, 1, GL_FALSE, getCurrentViewProjectionMatrix(nEye).get());
+		glBindVertexArray(m_unControllerVAO);
+		glDrawArrays(GL_LINES, 0, m_uiControllerVertcount);
+		glBindVertexArray(0);
+	}
+
+	// ----- Render Model rendering -----
+	glUseProgram(renderShader.getProgram());
+
+	for (uint32_t unTrackedDevice = 0; unTrackedDevice < vr::k_unMaxTrackedDeviceCount; unTrackedDevice++)
+	{
+		if (!mTrackedDeviceToRenderModel[unTrackedDevice] || !mShowTrackedDevice[unTrackedDevice])
+			continue;
+
+		const vr::TrackedDevicePose_t & pose = mTrackedDevicePose[unTrackedDevice];
+		if (!pose.bPoseIsValid)
+			continue;
+
+		if (bIsInputCapturedByAnotherProcess && mHMD->GetTrackedDeviceClass(unTrackedDevice) == vr::TrackedDeviceClass_Controller)
+			continue;
+
+		const Matrix4 & matDeviceToTracking = mMat4DevicePose[unTrackedDevice];
+		Matrix4 matMVP = getCurrentViewProjectionMatrix(nEye) * matDeviceToTracking;
+		glUniformMatrix4fv(mRenderMatrixLocation, 1, GL_FALSE, matMVP.get());
+
+		mTrackedDeviceToRenderModel[unTrackedDevice]->Draw();
+	}
+
+	glUseProgram(0);
 	ofPopView();
 	glDisable(GL_MULTISAMPLE);
 	if (nEye == vr::Hmd_Eye::Eye_Left) {
@@ -240,7 +225,7 @@ void ofxOpenVR::setupRenderModelForTrackedDevice(vr::TrackedDeviceIndex_t unTrac
 	if (!pRenderModel)
 	{
 		std::string sTrackingSystemName = getTrackedDeviceString(mHMD, unTrackedDeviceIndex, vr::Prop_TrackingSystemName_String);
-	//	printf("Unable to load render model for tracked device %d (%s.%s)", unTrackedDeviceIndex, sTrackingSystemName.c_str(), sRenderModelName.c_str());
+		//	printf("Unable to load render model for tracked device %d (%s.%s)", unTrackedDeviceIndex, sTrackingSystemName.c_str(), sRenderModelName.c_str());
 	}
 	else
 	{
@@ -255,40 +240,215 @@ void ofxOpenVR::drawDebug() {
 	mRightEyeResolveFrameBuffer.draw(mRenderWidth, 0);
 }
 
-void ofxOpenVR::renderController(vr::Hmd_Eye nEye) {
-	bIsInputCapturedByAnotherProcess = mHMD->IsInputFocusCapturedByAnotherProcess();
+GLuint ofxOpenVR::CompileGLShader(const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader) {
 
-	if (!bIsInputCapturedByAnotherProcess)
+	GLuint unProgramID = glCreateProgram();
+
+	GLuint nSceneVertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(nSceneVertexShader, 1, &pchVertexShader, NULL);
+	glCompileShader(nSceneVertexShader);
+
+	GLint vShaderCompiled = GL_FALSE;
+	glGetShaderiv(nSceneVertexShader, GL_COMPILE_STATUS, &vShaderCompiled);
+	if (vShaderCompiled != GL_TRUE)
 	{
-		// draw the controller axis lines
-		controllerShader.begin();
-		controllerShader.setUniformMatrix4f("matrix", getCurrentViewProjectionMatrix(nEye));
-
-		controllerShader.end();
+		ofLogError()<<"%s - Unable to compile vertex shader %d!\n", pchShaderName, nSceneVertexShader;
+		glDeleteProgram(unProgramID);
+		glDeleteShader(nSceneVertexShader);
+		return 0;
 	}
+	glAttachShader(unProgramID, nSceneVertexShader);
+	glDeleteShader(nSceneVertexShader); // the program hangs onto this once it's attached
+
+	GLuint  nSceneFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(nSceneFragmentShader, 1, &pchFragmentShader, NULL);
+	glCompileShader(nSceneFragmentShader);
+
+	GLint fShaderCompiled = GL_FALSE;
+	glGetShaderiv(nSceneFragmentShader, GL_COMPILE_STATUS, &fShaderCompiled);
+	if (fShaderCompiled != GL_TRUE)
+	{
+		ofLogError() << "%s - Unable to compile fragment shader %d!\n", pchShaderName, nSceneFragmentShader;
+		glDeleteProgram(unProgramID);
+		glDeleteShader(nSceneFragmentShader);
+		return 0;
+	}
+
+	glAttachShader(unProgramID, nSceneFragmentShader);
+	glDeleteShader(nSceneFragmentShader); // the program hangs onto this once it's attached
+
+	glLinkProgram(unProgramID);
+
+	GLint programSuccess = GL_TRUE;
+	glGetProgramiv(unProgramID, GL_LINK_STATUS, &programSuccess);
+	if (programSuccess != GL_TRUE)
+	{
+		ofLogError() <<"%s - Error linking program %d!\n", pchShaderName, unProgramID;
+		glDeleteProgram(unProgramID);
+		return 0;
+	}
+
+	glUseProgram(unProgramID);
+	glUseProgram(0);
+
+	return unProgramID;
+
+
+}
+//-----------------------------------------------------------------------------
+// Purpose: Creates all the shaders used by HelloVR SDL
+//-----------------------------------------------------------------------------
+bool ofxOpenVR::CreateAllShaders()
+{
+	m_unSceneProgramID = CompileGLShader(
+		"Scene",
+
+		// Vertex Shader
+		"#version 410\n"
+		"uniform mat4 matrix;\n"
+		"layout(location = 0) in vec4 position;\n"
+		"layout(location = 1) in vec2 v2UVcoordsIn;\n"
+		"layout(location = 2) in vec3 v3NormalIn;\n"
+		"out vec2 v2UVcoords;\n"
+		"void main()\n"
+		"{\n"
+		"	v2UVcoords = v2UVcoordsIn;\n"
+		"	gl_Position = matrix * position;\n"
+		"}\n",
+
+		// Fragment Shader
+		"#version 410 core\n"
+		"uniform sampler2D mytexture;\n"
+		"in vec2 v2UVcoords;\n"
+		"out vec4 outputColor;\n"
+		"void main()\n"
+		"{\n"
+		"   outputColor = texture(mytexture, v2UVcoords);\n"
+		"}\n"
+	);
+	m_nSceneMatrixLocation = glGetUniformLocation(m_unSceneProgramID, "matrix");
+	if (m_nSceneMatrixLocation == -1)
+	{
+		ofLogError() << "Unable to find matrix uniform in scene shader\n";
+		return false;
+	}
+
+	m_unControllerTransformProgramID = CompileGLShader(
+		"Controller",
+
+		// vertex shader
+		"#version 410\n"
+		"uniform mat4 matrix;\n"
+		"layout(location = 0) in vec4 position;\n"
+		"layout(location = 1) in vec3 v3ColorIn;\n"
+		"out vec4 v4Color;\n"
+		"void main()\n"
+		"{\n"
+		"	v4Color.xyz = v3ColorIn; v4Color.a = 1.0;\n"
+		"	gl_Position = matrix * position;\n"
+		"}\n",
+
+		// fragment shader
+		"#version 410\n"
+		"in vec4 v4Color;\n"
+		"out vec4 outputColor;\n"
+		"void main()\n"
+		"{\n"
+		"   outputColor = v4Color;\n"
+		"}\n"
+	);
+	m_nControllerMatrixLocation = glGetUniformLocation(m_unControllerTransformProgramID, "matrix");
+	if (m_nControllerMatrixLocation == -1)
+	{
+		ofLogError() << "Unable to find matrix uniform in controller shader\n";
+		return false;
+	}
+
+	m_unRenderModelProgramID = CompileGLShader(
+		"render model",
+
+		// vertex shader
+		"#version 410\n"
+		"uniform mat4 matrix;\n"
+		"layout(location = 0) in vec4 position;\n"
+		"layout(location = 1) in vec3 v3NormalIn;\n"
+		"layout(location = 2) in vec2 v2TexCoordsIn;\n"
+		"out vec2 v2TexCoord;\n"
+		"void main()\n"
+		"{\n"
+		"	v2TexCoord = v2TexCoordsIn;\n"
+		"	gl_Position = matrix * vec4(position.xyz, 1);\n"
+		"}\n",
+
+		//fragment shader
+		"#version 410 core\n"
+		"uniform sampler2D diffuse;\n"
+		"in vec2 v2TexCoord;\n"
+		"out vec4 outputColor;\n"
+		"void main()\n"
+		"{\n"
+		"   outputColor = texture( diffuse, v2TexCoord);\n"
+		"}\n"
+
+	);
+	m_nRenderModelMatrixLocation = glGetUniformLocation(m_unRenderModelProgramID, "matrix");
+	if (m_nRenderModelMatrixLocation == -1)
+	{
+		ofLogError() << "Unable to find matrix uniform in render model shader\n";
+		return false;
+	}
+
+	m_unLensProgramID = CompileGLShader(
+		"Distortion",
+
+		// vertex shader
+		"#version 410 core\n"
+		"layout(location = 0) in vec4 position;\n"
+		"layout(location = 1) in vec2 v2UVredIn;\n"
+		"layout(location = 2) in vec2 v2UVGreenIn;\n"
+		"layout(location = 3) in vec2 v2UVblueIn;\n"
+		"noperspective  out vec2 v2UVred;\n"
+		"noperspective  out vec2 v2UVgreen;\n"
+		"noperspective  out vec2 v2UVblue;\n"
+		"void main()\n"
+		"{\n"
+		"	v2UVred = v2UVredIn;\n"
+		"	v2UVgreen = v2UVGreenIn;\n"
+		"	v2UVblue = v2UVblueIn;\n"
+		"	gl_Position = position;\n"
+		"}\n",
+
+		// fragment shader
+		"#version 410 core\n"
+		"uniform sampler2D mytexture;\n"
+
+		"noperspective  in vec2 v2UVred;\n"
+		"noperspective  in vec2 v2UVgreen;\n"
+		"noperspective  in vec2 v2UVblue;\n"
+
+		"out vec4 outputColor;\n"
+
+		"void main()\n"
+		"{\n"
+		"	float fBoundsCheck = ( (dot( vec2( lessThan( v2UVgreen.xy, vec2(0.05, 0.05)) ), vec2(1.0, 1.0))+dot( vec2( greaterThan( v2UVgreen.xy, vec2( 0.95, 0.95)) ), vec2(1.0, 1.0))) );\n"
+		"	if( fBoundsCheck > 1.0 )\n"
+		"	{ outputColor = vec4( 0, 0, 0, 1.0 ); }\n"
+		"	else\n"
+		"	{\n"
+		"		float red = texture(mytexture, v2UVred).x;\n"
+		"		float green = texture(mytexture, v2UVgreen).y;\n"
+		"		float blue = texture(mytexture, v2UVblue).z;\n"
+		"		outputColor = vec4( red, green, blue, 1.0  ); }\n"
+		"}\n"
+	);
+
+
+	return m_unSceneProgramID != 0
+		&& m_unControllerTransformProgramID != 0
+		&& m_unRenderModelProgramID != 0
+		&& m_unLensProgramID != 0;
 }
 
-void ofxOpenVR::renderModels(vr::Hmd_Eye nEye) {
-	renderShader.begin();
-	for (uint32_t unTrackedDevice = 0; unTrackedDevice < vr::k_unMaxTrackedDeviceCount; unTrackedDevice++)
-	{
-		if (!mTrackedDeviceToRenderModel[unTrackedDevice] || !mShowTrackedDevice[unTrackedDevice])
-			continue;
-
-		const vr::TrackedDevicePose_t & pose = mTrackedDevicePose[unTrackedDevice];
-		if (!pose.bPoseIsValid)
-			continue;
-
-		if (bIsInputCapturedByAnotherProcess && mHMD->GetTrackedDeviceClass(unTrackedDevice) == vr::TrackedDeviceClass_Controller)
-			continue;
-
-		const ofMatrix4x4 & matDeviceToTracking = mMat4DevicePose[unTrackedDevice];
-		ofMatrix4x4 matMVP = getCurrentViewProjectionMatrix(nEye) * matDeviceToTracking;
-		renderShader.setUniformMatrix4f("matrix", matMVP);
-		mTrackedDeviceToRenderModel[unTrackedDevice]->Draw();
-	}
-	renderShader.end();
-}
 
 bool ofxOpenVR::createAllShaders()
 {
@@ -325,7 +485,7 @@ bool ofxOpenVR::createAllShaders()
 	if (!sceneShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShaderProgram)) {
 		return false;
 	}
-
+	sceneShader.bindDefaults();
 	sceneShader.linkProgram();
 
 	mSceneMatrixLocation = sceneShader.getUniformLocation("matrix");
@@ -362,7 +522,7 @@ bool ofxOpenVR::createAllShaders()
 
 	controllerShader.setupShaderFromSource(GL_VERTEX_SHADER, vertexShaderProgram);
 	controllerShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShaderProgram);
-	//controllerShader.bindDefaults();
+	controllerShader.bindDefaults();
 	controllerShader.linkProgram();
 
 
@@ -401,7 +561,7 @@ bool ofxOpenVR::createAllShaders()
 
 	renderShader.setupShaderFromSource(GL_VERTEX_SHADER, vertexShaderProgram);
 	renderShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShaderProgram);
-	//renderShader.bindDefaults();
+	renderShader.bindDefaults();
 	renderShader.linkProgram();
 
 	mRenderMatrixLocation = renderShader.getUniformLocation("matrix");
@@ -459,25 +619,38 @@ bool ofxOpenVR::createAllShaders()
 
 	distortionShader.setupShaderFromSource(GL_VERTEX_SHADER, vertexShaderProgram);
 	distortionShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShaderProgram);
-	//distortionShader.bindDefaults();
+	distortionShader.bindDefaults();
 	distortionShader.linkProgram();
 
 
 	return true;
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: Converts a SteamVR matrix to our local matrix class
+//-----------------------------------------------------------------------------
+Matrix4 ofxOpenVR::convertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t &matPose)
+{
+	Matrix4 matrixObj(
+		matPose.m[0][0], matPose.m[1][0], matPose.m[2][0], 0.0,
+		matPose.m[0][1], matPose.m[1][1], matPose.m[2][1], 0.0,
+		matPose.m[0][2], matPose.m[1][2], matPose.m[2][2], 0.0,
+		matPose.m[0][3], matPose.m[1][3], matPose.m[2][3], 1.0f
+	);
+	return matrixObj;
+}
 
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-ofMatrix4x4 ofxOpenVR::getHMDMatrixProjectionEye(vr::Hmd_Eye nEye)
+Matrix4 ofxOpenVR::getHMDMatrixProjectionEye(vr::Hmd_Eye nEye)
 {
 	if (!mHMD)
-		return ofMatrix4x4();
+		return Matrix4();
 
 	vr::HmdMatrix44_t mat = mHMD->GetProjectionMatrix(nEye, mNearClip, mFarClip, vr::API_OpenGL);
 
-	return ofMatrix4x4(
+	return Matrix4(
 		mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
 		mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
 		mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
@@ -488,20 +661,20 @@ ofMatrix4x4 ofxOpenVR::getHMDMatrixProjectionEye(vr::Hmd_Eye nEye)
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-ofMatrix4x4 ofxOpenVR::getHMDMatrixPoseEye(vr::Hmd_Eye nEye)
+Matrix4 ofxOpenVR::getHMDMatrixPoseEye(vr::Hmd_Eye nEye)
 {
 	if (!mHMD)
-		return ofMatrix4x4();
+		return Matrix4();
 
 	vr::HmdMatrix34_t matEyeRight = mHMD->GetEyeToHeadTransform(nEye);
-	ofMatrix4x4 matrixObj(
+	Matrix4 matrixObj(
 		matEyeRight.m[0][0], matEyeRight.m[1][0], matEyeRight.m[2][0], 0.0,
 		matEyeRight.m[0][1], matEyeRight.m[1][1], matEyeRight.m[2][1], 0.0,
 		matEyeRight.m[0][2], matEyeRight.m[1][2], matEyeRight.m[2][2], 0.0,
 		matEyeRight.m[0][3], matEyeRight.m[1][3], matEyeRight.m[2][3], 1.0f
 	);
 
-	return matrixObj.getInverse();
+	return matrixObj.invert();
 }
 //-----------------------------------------------------------------------------
 // Purpose:
@@ -512,7 +685,6 @@ void ofxOpenVR::renderFrame()
 	vr::VRCompositor()->Submit(vr::Eye_Left, &leftEyeTexture);
 	vr::Texture_t rightEyeTexture = { (void*)rightEyeDesc.m_nResolveTextureId, vr::API_OpenGL, vr::ColorSpace_Gamma };
 	vr::VRCompositor()->Submit(vr::Eye_Right, &rightEyeTexture);
-
 
 	// Spew out the controller and pose count whenever they change.
 	if (mTrackedControllerCount != mTrackedControllerCount_Last || mValidPoseCount != mValidPoseCount_Last)
@@ -558,7 +730,7 @@ RenderModel *ofxOpenVR::FindOrLoadRenderModel(const char *pchRenderModelName)
 
 		if (error != vr::VRRenderModelError_None)
 		{
-			ofLogError()<<"Unable to load render texture id:%d for render model %s\n", pModel->diffuseTextureId, pchRenderModelName;
+			ofLogError() << "Unable to load render texture id:%d for render model %s\n", pModel->diffuseTextureId, pchRenderModelName;
 			("Unable to load render model %s - %s\n", pchRenderModelName, vr::VRRenderModels()->GetRenderModelErrorNameFromEnum(error));
 			return NULL; // move on to the next tracked device
 		}
@@ -598,101 +770,101 @@ RenderModel *ofxOpenVR::FindOrLoadRenderModel(const char *pchRenderModelName)
 
 void ofxOpenVR::drawControllers() {
 
-		// don't draw controllers if somebody else has input focus
-		if (mHMD->IsInputFocusCapturedByAnotherProcess())
-			return;
+	// don't draw controllers if somebody else has input focus
+	if (mHMD->IsInputFocusCapturedByAnotherProcess())
+		return;
 
-		std::vector<float> vertdataarray;
+	std::vector<float> vertdataarray;
 
-		m_uiControllerVertcount = 0;
-		mTrackedControllerCount = 0;
+	m_uiControllerVertcount = 0;
+	mTrackedControllerCount = 0;
 
-		for (vr::TrackedDeviceIndex_t unTrackedDevice = vr::k_unTrackedDeviceIndex_Hmd + 1; unTrackedDevice < vr::k_unMaxTrackedDeviceCount; ++unTrackedDevice)
+	for (vr::TrackedDeviceIndex_t unTrackedDevice = vr::k_unTrackedDeviceIndex_Hmd + 1; unTrackedDevice < vr::k_unMaxTrackedDeviceCount; ++unTrackedDevice)
+	{
+		if (!mHMD->IsTrackedDeviceConnected(unTrackedDevice))
+			continue;
+
+		if (mHMD->GetTrackedDeviceClass(unTrackedDevice) != vr::TrackedDeviceClass_Controller)
+			continue;
+
+		mTrackedControllerCount += 1;
+
+		if (!mTrackedDevicePose[unTrackedDevice].bPoseIsValid)
+			continue;
+
+		const Matrix4 & mat = mMat4DevicePose[unTrackedDevice];
+
+		Vector4 center = mat * Vector4(0, 0, 0, 1);
+
+		for (int i = 0; i < 3; ++i)
 		{
-			if (!mHMD->IsTrackedDeviceConnected(unTrackedDevice))
-				continue;
+			Vector3 color(0, 0, 0);
+			Vector4 point(0, 0, 0, 1);
+			point[i] += 0.05f;  // offset in X, Y, Z
+			color[i] = 1.0;  // R, G, B
+			point = mat * point;
+			vertdataarray.push_back(center.x);
+			vertdataarray.push_back(center.y);
+			vertdataarray.push_back(center.z);
 
-			if (mHMD->GetTrackedDeviceClass(unTrackedDevice) != vr::TrackedDeviceClass_Controller)
-				continue;
+			vertdataarray.push_back(color.x);
+			vertdataarray.push_back(color.y);
+			vertdataarray.push_back(color.z);
 
-			mTrackedControllerCount += 1;
+			vertdataarray.push_back(point.x);
+			vertdataarray.push_back(point.y);
+			vertdataarray.push_back(point.z);
 
-			if (!mTrackedDevicePose[unTrackedDevice].bPoseIsValid)
-				continue;
+			vertdataarray.push_back(color.x);
+			vertdataarray.push_back(color.y);
+			vertdataarray.push_back(color.z);
 
-			const ofMatrix4x4 & mat = mMat4DevicePose[unTrackedDevice];
-
-			ofVec4f center = mat * ofVec4f(0, 0, 0, 1);
-
-			for (int i = 0; i < 3; ++i)
-			{
-				ofVec3f color(0, 0, 0);
-				ofVec4f point(0, 0, 0, 1);
-				point[i] += 0.05f;  // offset in X, Y, Z
-				color[i] = 1.0;  // R, G, B
-				point = mat * point;
-				vertdataarray.push_back(center.x);
-				vertdataarray.push_back(center.y);
-				vertdataarray.push_back(center.z);
-
-				vertdataarray.push_back(color.x);
-				vertdataarray.push_back(color.y);
-				vertdataarray.push_back(color.z);
-
-				vertdataarray.push_back(point.x);
-				vertdataarray.push_back(point.y);
-				vertdataarray.push_back(point.z);
-
-				vertdataarray.push_back(color.x);
-				vertdataarray.push_back(color.y);
-				vertdataarray.push_back(color.z);
-
-				m_uiControllerVertcount += 2;
-			}
-
-			ofVec4f start = mat * ofVec4f(0, 0, -0.02f, 1);
-			ofVec4f end = mat * ofVec4f(0, 0, -39.f, 1);
-			ofVec3f color(.92f, .92f, .71f);
-
-			vertdataarray.push_back(start.x); vertdataarray.push_back(start.y); vertdataarray.push_back(start.z);
-			vertdataarray.push_back(color.x); vertdataarray.push_back(color.y); vertdataarray.push_back(color.z);
-
-			vertdataarray.push_back(end.x); vertdataarray.push_back(end.y); vertdataarray.push_back(end.z);
-			vertdataarray.push_back(color.x); vertdataarray.push_back(color.y); vertdataarray.push_back(color.z);
 			m_uiControllerVertcount += 2;
 		}
 
-		// Setup the VAO the first time through.
-		if (m_unControllerVAO == 0)
-		{
-			glGenVertexArrays(1, &m_unControllerVAO);
-			glBindVertexArray(m_unControllerVAO);
+		Vector4 start = mat * Vector4(0, 0, -0.02f, 1);
+		Vector4 end = mat * Vector4(0, 0, -39.f, 1);
+		Vector3 color(.92f, .92f, .71f);
 
-			glGenBuffers(1, &m_glControllerVertBuffer);
-			glBindBuffer(GL_ARRAY_BUFFER, m_glControllerVertBuffer);
+		vertdataarray.push_back(start.x); vertdataarray.push_back(start.y); vertdataarray.push_back(start.z);
+		vertdataarray.push_back(color.x); vertdataarray.push_back(color.y); vertdataarray.push_back(color.z);
 
-			GLuint stride = 2 * 3 * sizeof(float);
-			GLuint offset = 0;
+		vertdataarray.push_back(end.x); vertdataarray.push_back(end.y); vertdataarray.push_back(end.z);
+		vertdataarray.push_back(color.x); vertdataarray.push_back(color.y); vertdataarray.push_back(color.z);
+		m_uiControllerVertcount += 2;
+	}
 
-			glEnableVertexAttribArray(0);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
+	// Setup the VAO the first time through.
+	if (m_unControllerVAO == 0)
+	{
+		glGenVertexArrays(1, &m_unControllerVAO);
+		glBindVertexArray(m_unControllerVAO);
 
-			offset += sizeof(ofVec3f);
-			glEnableVertexAttribArray(1);
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
-
-			glBindVertexArray(0);
-		}
-
+		glGenBuffers(1, &m_glControllerVertBuffer);
 		glBindBuffer(GL_ARRAY_BUFFER, m_glControllerVertBuffer);
 
-		// set vertex data if we have some
-		if (vertdataarray.size() > 0)
-		{
-			//$ TODO: Use glBufferSubData for this...
-			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertdataarray.size(), &vertdataarray[0], GL_STREAM_DRAW);
-		}
-	
+		GLuint stride = 2 * 3 * sizeof(float);
+		GLuint offset = 0;
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
+
+		offset += sizeof(Vector3);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
+
+		glBindVertexArray(0);
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, m_glControllerVertBuffer);
+
+	// set vertex data if we have some
+	if (vertdataarray.size() > 0)
+	{
+		//$ TODO: Use glBufferSubData for this...
+		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertdataarray.size(), &vertdataarray[0], GL_STREAM_DRAW);
+	}
+
 }
 
 void ofxOpenVR::renderStereoTargets() {
@@ -732,13 +904,14 @@ void ofxOpenVR::updateHMDMatrixPose() {
 
 	if (mTrackedDevicePose[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid)
 	{
-		mMat4HMDPose = mMat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd].getInverse();
+		mMat4HMDPose = mMat4DevicePose[vr::k_unTrackedDeviceIndex_Hmd].invert();
 	}
 }
 
 
 
 void ofxOpenVR::renderDistortion() {
+	ofPushView();
 	glDisable(GL_DEPTH_TEST);
 	glViewport(0, 0, mWindowWidth, mWindowHeight);
 
@@ -763,14 +936,15 @@ void ofxOpenVR::renderDistortion() {
 
 	glBindVertexArray(0);
 	glUseProgram(0);
+	ofPopView();
 }
 
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-ofMatrix4x4 ofxOpenVR::getCurrentViewProjectionMatrix(vr::Hmd_Eye nEye)
+Matrix4 ofxOpenVR::getCurrentViewProjectionMatrix(vr::Hmd_Eye nEye)
 {
-	ofMatrix4x4 matMVP;
+	Matrix4 matMVP;
 	if (nEye == vr::Eye_Left)
 	{
 		matMVP = mMat4ProjectionLeft * mMat4eyePosLeft * mMat4HMDPose;
@@ -806,13 +980,13 @@ void ofxOpenVR::setupDistortion()
 		for (int x = 0; x < m_iLensGridSegmentCountH; x++)
 		{
 			u = x*w; v = 1 - y*h;
-			vert.position = ofVec2f(Xoffset + u, -1 + 2 * y*h);
+			vert.position = Vector2(Xoffset + u, -1 + 2 * y*h);
 
 			vr::DistortionCoordinates_t dc0 = mHMD->ComputeDistortion(vr::Eye_Left, u, v);
 
-			vert.texCoordRed = ofVec2f(dc0.rfRed[0], 1 - dc0.rfRed[1]);
-			vert.texCoordGreen = ofVec2f(dc0.rfGreen[0], 1 - dc0.rfGreen[1]);
-			vert.texCoordBlue = ofVec2f(dc0.rfBlue[0], 1 - dc0.rfBlue[1]);
+			vert.texCoordRed = Vector2(dc0.rfRed[0], 1 - dc0.rfRed[1]);
+			vert.texCoordGreen = Vector2(dc0.rfGreen[0], 1 - dc0.rfGreen[1]);
+			vert.texCoordBlue = Vector2(dc0.rfBlue[0], 1 - dc0.rfBlue[1]);
 
 			vVerts.push_back(vert);
 		}
@@ -825,13 +999,13 @@ void ofxOpenVR::setupDistortion()
 		for (int x = 0; x < m_iLensGridSegmentCountH; x++)
 		{
 			u = x*w; v = 1 - y*h;
-			vert.position = ofVec2f(Xoffset + u, -1 + 2 * y*h);
+			vert.position = Vector2(Xoffset + u, -1 + 2 * y*h);
 
 			vr::DistortionCoordinates_t dc0 = mHMD->ComputeDistortion(vr::Eye_Right, u, v);
 
-			vert.texCoordRed = ofVec2f(dc0.rfRed[0], 1 - dc0.rfRed[1]);
-			vert.texCoordGreen = ofVec2f(dc0.rfGreen[0], 1 - dc0.rfGreen[1]);
-			vert.texCoordBlue = ofVec2f(dc0.rfBlue[0], 1 - dc0.rfBlue[1]);
+			vert.texCoordRed = Vector2(dc0.rfRed[0], 1 - dc0.rfRed[1]);
+			vert.texCoordGreen = Vector2(dc0.rfGreen[0], 1 - dc0.rfGreen[1]);
+			vert.texCoordBlue = Vector2(dc0.rfBlue[0], 1 - dc0.rfBlue[1]);
 
 			vVerts.push_back(vert);
 		}
@@ -973,8 +1147,6 @@ void ofxOpenVR::setupCameras()
 	mMat4eyePosLeft = getHMDMatrixPoseEye(vr::Eye_Left);
 	mMat4eyePosRight = getHMDMatrixPoseEye(vr::Eye_Right);
 }
-
-
 
 //-----------------------------------------------------------------------------
 // Purpose:

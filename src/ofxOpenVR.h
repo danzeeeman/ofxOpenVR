@@ -1,7 +1,7 @@
 #pragma once
 #include "ofMain.h"
 #include "openvr.h"
-
+#include "Matrices.h"
 
 class RenderModel
 {
@@ -52,17 +52,17 @@ class ofxOpenVR {
 		void beginScene(vr::Hmd_Eye nEye);
 		void endScene(vr::Hmd_Eye nEye);
 		
-		void renderController(vr::Hmd_Eye nEye);
-		void renderModels(vr::Hmd_Eye nEye);
 
-		ofMatrix4x4 getHMDMatrixProjectionEye(vr::Hmd_Eye nEye);
-		ofMatrix4x4 getHMDMatrixPoseEye(vr::Hmd_Eye nEye);
-		ofMatrix4x4 getCurrentViewProjectionMatrix(vr::Hmd_Eye nEye);
+		Matrix4 getHMDMatrixProjectionEye(vr::Hmd_Eye nEye);
+		Matrix4 getHMDMatrixPoseEye(vr::Hmd_Eye nEye);
+		Matrix4 getCurrentViewProjectionMatrix(vr::Hmd_Eye nEye);
 		void updateHMDMatrixPose();
 
-		ofMatrix4x4 convertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t &matPose);
+		Matrix4 convertSteamVRMatrixToMatrix4(const vr::HmdMatrix34_t &matPose);
 		RenderModel *FindOrLoadRenderModel(const char *pchRenderModelName);
 		bool createAllShaders();
+		GLuint CompileGLShader(const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader);
+		bool CreateAllShaders();
 
 		//void setupRenderModelForTrackedDevice(vr::TrackedDeviceIndex_t unTrackedDeviceIndex);
 	private:
@@ -71,7 +71,7 @@ class ofxOpenVR {
 		std::string mStrDriver;
 		std::string mStrDisplay;
 		vr::TrackedDevicePose_t mTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
-		ofMatrix4x4 mMat4DevicePose[vr::k_unMaxTrackedDeviceCount];
+		Matrix4 mMat4DevicePose[vr::k_unMaxTrackedDeviceCount];
 		bool mShowTrackedDevice[vr::k_unMaxTrackedDeviceCount];
 
 		int mTrackedControllerCount;
@@ -99,16 +99,16 @@ class ofxOpenVR {
 
 		struct VertexDataScene
 		{
-			ofVec3f position;
-			ofVec2f texCoord;
+			Vector3 position;
+			Vector2 texCoord;
 		};
 
 		struct VertexDataLens
 		{
-			ofVec2f position;
-			ofVec2f texCoordRed;
-			ofVec2f texCoordGreen;
-			ofVec2f texCoordBlue;
+			Vector2 position;
+			Vector2 texCoordRed;
+			Vector2 texCoordGreen;
+			Vector2 texCoordBlue;
 		};
 
 		ofFbo mLeftEyeRenderFrameBuffer;
@@ -132,13 +132,13 @@ class ofxOpenVR {
 		GLint mRenderMatrixLocation;
 		bool bIsInputCapturedByAnotherProcess;
 
-		ofMatrix4x4 mMat4HMDPose;
-		ofMatrix4x4 mMat4eyePosLeft;
-		ofMatrix4x4 mMat4eyePosRight;
+		Matrix4 mMat4HMDPose;
+		Matrix4 mMat4eyePosLeft;
+		Matrix4 mMat4eyePosRight;
 
-		ofMatrix4x4 mMat4ProjectionCenter;
-		ofMatrix4x4 mMat4ProjectionLeft;
-		ofMatrix4x4 mMat4ProjectionRight;
+		Matrix4 mMat4ProjectionCenter;
+		Matrix4 mMat4ProjectionLeft;
+		Matrix4 mMat4ProjectionRight;
 
 		vector<ofFbo*> eyes;
 
@@ -170,4 +170,13 @@ class ofxOpenVR {
 		std::vector< RenderModel * > m_vecRenderModels;
 		RenderModel *mTrackedDeviceToRenderModel[vr::k_unMaxTrackedDeviceCount];
 
+
+		GLuint m_unSceneProgramID;
+		GLuint m_unLensProgramID;
+		GLuint m_unControllerTransformProgramID;
+		GLuint m_unRenderModelProgramID;
+
+		GLint m_nSceneMatrixLocation;
+		GLint m_nControllerMatrixLocation;
+		GLint m_nRenderModelMatrixLocation;
 };
